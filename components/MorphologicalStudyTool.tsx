@@ -14,6 +14,7 @@ interface Element {
   number?: number;
   textValue?: string;
   rotation?: number;
+  labelOffset?: Point; // Added to allow manual placement of numbers
 }
 
 interface SnapResult {
@@ -35,6 +36,7 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
   const [currentPoints, setCurrentPoints] = useState<Point[]>([]);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [draggingPointIdx, setDraggingPointIdx] = useState<number | null>(null);
+  const [draggingLabelId, setDraggingLabelId] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 });
   const [snapType, setSnapType] = useState<'vertex' | 'edge' | null>(null);
   
@@ -42,7 +44,12 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0 });
-  const dragElementStart = useRef<{x: number, y: number, initialPoints: Point[]}>({x: 0, y: 0, initialPoints: []});
+  const dragElementStart = useRef<{x: number, y: number, initialPoints: Point[], initialOffset: Point}>({
+    x: 0, 
+    y: 0, 
+    initialPoints: [],
+    initialOffset: { x: 0, y: 0 }
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -62,6 +69,7 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
           setCurrentPoints([]);
         } else {
           setEditingElementId(null);
+          setDraggingLabelId(null);
           setScale(1);
           setOffset({ x: 0, y: 0 });
         }
@@ -111,7 +119,6 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
     const vertexSnapDist = 18 / scale;
     const edgeSnapDist = 12 / scale;
 
-    // 1. Priority: Vertex Snapping
     for (const el of elements) {
       for (const p of el.points) {
         const dist = Math.sqrt(Math.pow(p.x - point.x, 2) + Math.pow(p.y - point.y, 2));
@@ -123,13 +130,12 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
       if (dist < vertexSnapDist) return { point: p, type: 'vertex' };
     }
 
-    // 2. Secondary: Edge Snapping ("En la línea")
     for (const el of elements) {
       if (el.points.length < 2) continue;
       for (let i = 0; i < el.points.length; i++) {
         const a = el.points[i];
         const b = el.points[(i + 1) % el.points.length];
-        if (el.type === 'calle' && i === el.points.length - 1) continue; // Skip closure for open lines
+        if (el.type === 'calle' && i === el.points.length - 1) continue;
 
         const closest = getClosestPointOnSegment(point, a, b);
         const dist = Math.sqrt(Math.pow(closest.x - point.x, 2) + Math.pow(closest.y - point.y, 2));
@@ -190,19 +196,31 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
     setMousePos(snap.point);
     setSnapType(snap.type);
 
-    if (mode === 'edit' && editingElementId && draggingPointIdx !== null) {
-      const point = snap.point;
-      if (draggingPointIdx === -1) {
-        const dx = point.x - dragElementStart.current.x;
-        const dy = point.y - dragElementStart.current.y;
-        setElements(prev => prev.map(p => (p.id === editingElementId ? {
+    if (mode === 'edit') {
+      if (editingElementId && draggingPointIdx !== null) {
+        const point = snap.point;
+        if (draggingPointIdx === -1) {
+          const dx = point.x - dragElementStart.current.x;
+          const dy = point.y - dragElementStart.current.y;
+          setElements(prev => prev.map(p => (p.id === editingElementId ? {
+            ...p,
+            points: dragElementStart.current.initialPoints.map(pt => ({ x: pt.x + dx, y: pt.y + dy }))
+          } : p)));
+        } else {
+          setElements(prev => prev.map(p => (p.id === editingElementId ? {
+            ...p,
+            points: p.points.map((pt, i) => i === draggingPointIdx ? point : pt)
+          } : p)));
+        }
+      } else if (draggingLabelId) {
+        const dx = rawPoint.x - dragElementStart.current.x;
+        const dy = rawPoint.y - dragElementStart.current.y;
+        setElements(prev => prev.map(p => (p.id === draggingLabelId ? {
           ...p,
-          points: dragElementStart.current.initialPoints.map(pt => ({ x: pt.x + dx, y: pt.y + dy }))
-        } : p)));
-      } else {
-        setElements(prev => prev.map(p => (p.id === editingElementId ? {
-          ...p,
-          points: p.points.map((pt, i) => i === draggingPointIdx ? point : pt)
+          labelOffset: { 
+            x: dragElementStart.current.initialOffset.x + dx, 
+            y: dragElementStart.current.initialOffset.y + dy 
+          }
         } : p)));
       }
     }
@@ -211,6 +229,7 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
   const handleMouseUp = () => {
     setIsPanning(false);
     setDraggingPointIdx(null);
+    setDraggingLabelId(null);
   };
 
   const handleSvgClick = (e: React.MouseEvent) => {
@@ -247,7 +266,8 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
       id: Math.random().toString(36).substr(2, 9),
       type,
       points: currentPoints,
-      number: (type === 'lote' || type === 'casa') ? nextNumber : undefined
+      number: (type === 'lote' || type === 'casa') ? nextNumber : undefined,
+      labelOffset: { x: 0, y: 0 }
     }]);
     setCurrentPoints([]);
   };
@@ -261,7 +281,12 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
     setEditingElementId(id);
     const el = elements.find(e => e.id === id);
     if (el) {
-      dragElementStart.current = { x: mousePos.x, y: mousePos.y, initialPoints: [...el.points] };
+      dragElementStart.current = { 
+        x: mousePos.x, 
+        y: mousePos.y, 
+        initialPoints: [...el.points],
+        initialOffset: { ...(el.labelOffset || { x: 0, y: 0 }) }
+      };
       setDraggingPointIdx(-1);
     }
     if (e.detail === 2 && el && (el.type === 'lote' || el.type === 'casa' || el.type === 'texto')) {
@@ -270,6 +295,23 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
       if (newNum !== null) {
         setElements(prev => prev.map(p => p.id === id ? (p.type === 'texto' ? { ...p, textValue: newNum } : { ...p, number: parseInt(newNum) || p.number }) : p));
       }
+    }
+  };
+
+  const startDraggingLabel = (id: string, e: React.MouseEvent) => {
+    if (mode !== 'edit' || isPanning) return;
+    e.stopPropagation();
+    setDraggingLabelId(id);
+    setEditingElementId(id);
+    const el = elements.find(e => e.id === id);
+    const rawPoint = getCoordinates(e);
+    if (el) {
+      dragElementStart.current = { 
+        x: rawPoint.x, 
+        y: rawPoint.y, 
+        initialPoints: [...el.points],
+        initialOffset: { ...(el.labelOffset || { x: 0, y: 0 }) }
+      };
     }
   };
 
@@ -369,7 +411,12 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
                 <g id="viewport">
                   {elements.map((el) => {
                     const centroid = calculateCentroid(el.points);
+                    const labelPos = { 
+                      x: centroid.x + (el.labelOffset?.x || 0), 
+                      y: centroid.y + (el.labelOffset?.y || 0) 
+                    };
                     const isSelected = editingElementId === el.id;
+
                     if (el.type === 'texto') return (
                       <g key={el.id} onClick={(e) => { e.stopPropagation(); deleteElement(el.id); selectElementToEdit(el.id, e); }}>
                         <text x={el.points[0].x} y={el.points[0].y} fill="#000" fontSize="26" fontWeight="1000" textAnchor="middle" paintOrder="stroke" stroke="white" strokeWidth="4" className={`select-none uppercase transition-all ${isSelected ? 'fill-indigo-600 scale-110' : ''}`} style={{ cursor: mode === 'delete' ? 'pointer' : 'move' }}>{el.textValue}</text>
@@ -380,12 +427,22 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
                       <polyline key={el.id} points={el.points.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke="#000" strokeWidth="4" strokeLinecap="round" strokeDasharray="12,10" onClick={(e) => { e.stopPropagation(); deleteElement(el.id); selectElementToEdit(el.id, e); }} className="hover:stroke-red-500 cursor-pointer" />
                     );
                     return (
-                      <g key={el.id} onClick={(e) => { e.stopPropagation(); deleteElement(el.id); selectElementToEdit(el.id, e); }}>
-                        <polygon points={el.points.map(p => `${p.x},${p.y}`).join(' ')} fill={el.type === 'casa' ? 'url(#hatch-casa-fine)' : 'none'} stroke={el.type === 'lote' ? '#2563eb' : el.type === 'casa' ? '#78350f' : '#ef4444'} strokeWidth={el.type === 'manzana' ? '8' : el.type === 'casa' ? '6' : '3'} className={`transition-all ${isSelected ? 'stroke-emerald-500 shadow-xl' : ''}`} />
+                      <g key={el.id}>
+                        <polygon 
+                          points={el.points.map(p => `${p.x},${p.y}`).join(' ')} 
+                          fill={el.type === 'casa' ? 'url(#hatch-casa-fine)' : 'none'} 
+                          stroke={el.type === 'lote' ? '#2563eb' : el.type === 'casa' ? '#78350f' : '#ef4444'} 
+                          strokeWidth={el.type === 'manzana' ? '8' : el.type === 'casa' ? '6' : '3'} 
+                          onClick={(e) => { e.stopPropagation(); deleteElement(el.id); selectElementToEdit(el.id, e); }}
+                          className={`transition-all cursor-pointer ${isSelected ? 'stroke-emerald-500 shadow-xl' : ''}`} 
+                        />
                         {(el.type === 'lote' || el.type === 'casa') && (
-                          <g pointerEvents="none">
-                            <circle cx={centroid.x} cy={centroid.y} r="20" fill="white" stroke={el.type === 'lote' ? '#2563eb' : '#78350f'} strokeWidth="4" filter="url(#halo-num)" />
-                            <text x={centroid.x} y={centroid.y} fill={el.type === 'lote' ? '#2563eb' : '#78350f'} fontSize="24" fontWeight="1000" textAnchor="middle" dominantBaseline="central">{el.number}</text>
+                          <g 
+                            onMouseDown={(e) => startDraggingLabel(el.id, e)}
+                            className={mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none'}
+                          >
+                            <circle cx={labelPos.x} cy={labelPos.y} r="20" fill="white" stroke={el.type === 'lote' ? '#2563eb' : '#78350f'} strokeWidth="4" filter="url(#halo-num)" />
+                            <text x={labelPos.x} y={labelPos.y} fill={el.type === 'lote' ? '#2563eb' : '#78350f'} fontSize="24" fontWeight="1000" textAnchor="middle" dominantBaseline="central">{el.number}</text>
                           </g>
                         )}
                         {mode === 'edit' && isSelected && el.points.map((p, idx) => <circle key={idx} cx={p.x} cy={p.y} r={12 / Math.sqrt(scale)} fill="white" stroke="#10b981" strokeWidth={4 / Math.sqrt(scale)} onMouseDown={(e) => { e.stopPropagation(); setDraggingPointIdx(idx); }} className="cursor-crosshair" />)}
@@ -395,7 +452,6 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
 
                   {currentPoints.length > 0 && <polyline points={currentPoints.map(p => `${p.x},${p.y}`).join(' ') + ` ${mousePos.x},${mousePos.y}`} fill="none" stroke="#3b82f6" strokeWidth={6 / Math.sqrt(scale)} strokeDasharray={`${14/scale},${8/scale}`} pointerEvents="none" />}
 
-                  {/* VISOR TÉCNICO ULTRA-FINO CON "ee" */}
                   {mode !== 'view' && !isPanning && (
                     <g pointerEvents="none" className={snapType ? 'animate-pulse' : ''}>
                       <line x1={mousePos.x - 120/scale} y1={mousePos.y} x2={mousePos.x + 120/scale} y2={mousePos.y} stroke={snapType ? "#00ffff" : "#ef4444"} strokeWidth={1/scale} />
@@ -421,6 +477,9 @@ const MorphologicalStudyTool: React.FC<Props> = ({ updateForm }) => {
             <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                <div className="flex items-center gap-3"><kbd className="bg-white px-1.5 py-0.5 rounded border text-[8px] font-black shadow-sm min-w-[50px] text-center">CTRL+Z</kbd><span className="text-[8px] font-bold text-slate-500 uppercase">Deshacer</span></div>
                <div className="flex items-center gap-3"><div className={`w-4 h-4 rounded-full border-2 ${snapType ? 'bg-cyan-400 border-white animate-ping' : 'bg-slate-200 border-slate-300'}`}></div><span className="text-[8px] font-bold text-slate-500 uppercase">{snapType ? `IMÁN: ${snapType === 'vertex' ? 'VÉRTICE' : 'LÍNEA'}` : 'BUSCANDO SNAP...'}</span></div>
+               <div className="p-2 bg-blue-50 rounded-lg text-[7px] font-bold text-blue-700 uppercase leading-tight">
+                 <i className="fas fa-info-circle mr-1"></i> En modo Editar, puedes arrastrar los números de los lotes/casas.
+               </div>
             </div>
             <button onClick={saveToForm} disabled={loading || elements.length === 0} className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg transition-all flex items-center justify-center gap-2 ${loading || elements.length === 0 ? 'bg-slate-200 text-slate-400' : 'bg-indigo-600 hover:bg-indigo-500 text-white active:scale-95 border-b-4 border-indigo-900'}`}>{loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>}{loading ? 'Exportando...' : 'Guardar Estudio'}</button>
           </div>
