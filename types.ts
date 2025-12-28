@@ -63,11 +63,11 @@ export interface FormState {
   estudioMorfologico: string; // Base64 image
   tipoImplantaciones: string; // Base64 image
   // Registro Fotográfico
-  registroFotograficoManzana: string; // Base64
+  registroFotograficoManzana: string[]; // Changed to Array
   comentarioRegistroManzana: string;
-  loteRetirosColindantes: string; // Base64
+  loteRetirosColindantes: string[]; // Changed to Array
   comentarioLoteRetiros: string;
-  fotografiaPredioColindantes: string; // Base64
+  fotografiaPredioColindantes: string[]; // Changed to Array
   comentarioFotografiaPredio: string;
   
   comentarioTecnico: string;
@@ -79,6 +79,7 @@ export interface FormState {
     telefono: string;
     celular: string;
     email: string;
+    firma: string; // New field for signature
   };
   profesional: {
     nombre: string;
@@ -90,6 +91,7 @@ export interface FormState {
     telefono: string;
     celular: string;
     email: string;
+    firma: string; // New field for signature
   };
   propuesta1: Proposal;
   propuesta2: Proposal;

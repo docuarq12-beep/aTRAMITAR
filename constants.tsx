@@ -54,11 +54,12 @@ export const INITIAL_STATE: FormState = {
   coordenadasLote: Array.from({ length: 4 }, (_, i) => INITIAL_COORDINATE(`P0${i+1}`)),
   estudioMorfologico: '',
   tipoImplantaciones: '',
-  registroFotograficoManzana: '',
+  registroFotograficoManzana: [], // Array
   comentarioRegistroManzana: '',
-  loteRetirosColindantes: '',
+  loteRetirosColindantes: [], // Array
   comentarioLoteRetiros: '',
-  fotografiaPredioColindantes: '',
+  // Fix: Removed duplicated key 'fotografiaPredioColindantes' that was causing a compile error
+  fotografiaPredioColindantes: [],
   comentarioFotografiaPredio: '',
   comentarioTecnico: '',
   propietario: {
@@ -67,7 +68,8 @@ export const INITIAL_STATE: FormState = {
     direccion: '',
     telefono: '',
     celular: '',
-    email: ''
+    email: '',
+    firma: ''
   },
   profesional: {
     nombre: '',
@@ -78,7 +80,8 @@ export const INITIAL_STATE: FormState = {
     direccion: '',
     telefono: '',
     celular: '',
-    email: ''
+    email: '',
+    firma: ''
   },
   propuesta1: JSON.parse(JSON.stringify(INITIAL_PROPOSAL)),
   propuesta2: JSON.parse(JSON.stringify(INITIAL_PROPOSAL)),

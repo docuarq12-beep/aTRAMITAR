@@ -28,16 +28,26 @@ const PreviewSection: React.FC<Props> = ({ form }) => {
     </div>
   );
 
-  const ImageBox = ({ src, label, h = "min-h-[120px]" }: { src: string, label: string, h?: string }) => (
-    <div className={`flex flex-col border border-slate-900 ${h}`}>
-       <div className="bg-slate-100 text-[8px] font-bold p-0.5 text-center border-b border-slate-900 uppercase">
-         {label}
-       </div>
-       <div className="flex-1 flex items-center justify-center p-1 bg-white overflow-hidden">
-         {src ? <img src={src} alt={label} className="max-w-full max-h-full object-contain" /> : <div className="text-slate-300 text-[7px] italic">No cargada</div>}
-       </div>
-    </div>
-  );
+  const ImageBox = ({ src, label, h = "min-h-[120px]" }: { src: string | string[], label: string, h?: string }) => {
+    const images = Array.isArray(src) ? src : (src ? [src] : []);
+    
+    return (
+      <div className={`flex flex-col border border-slate-900 ${h}`}>
+         <div className="bg-slate-100 text-[8px] font-bold p-0.5 text-center border-b border-slate-900 uppercase">
+           {label}
+         </div>
+         <div className={`flex-1 p-1 bg-white overflow-hidden ${images.length > 1 ? 'grid grid-cols-2 gap-1' : 'flex items-center justify-center'}`}>
+           {images.length > 0 ? (
+             images.map((img, idx) => (
+               <img key={idx} src={img} alt={label} className={`max-w-full max-h-full object-contain ${images.length > 1 ? 'border border-slate-100 h-full w-full object-cover' : ''}`} />
+             ))
+           ) : (
+             <div className="text-slate-300 text-[7px] italic">No cargada</div>
+           )}
+         </div>
+      </div>
+    );
+  };
 
   const RenderProposalPDF = ({ p, label }: { p: Proposal, label: string }) => (
     <div className="border border-slate-900 mb-2 overflow-hidden flex flex-col">
@@ -265,9 +275,7 @@ const PreviewSection: React.FC<Props> = ({ form }) => {
 
       <div className="mt-2 border border-slate-900 flex flex-col">
         <div className="bg-slate-800 text-white text-[9px] font-bold p-1 uppercase text-center">Registro Fotográfico de la Manzana</div>
-        <div className="h-[140px] flex items-center justify-center bg-white p-1">
-          {form.registroFotograficoManzana ? <img src={form.registroFotograficoManzana} alt="Manzana" className="max-w-full max-h-full object-contain" /> : <div className="text-slate-300 text-[8px] italic">No cargada</div>}
-        </div>
+        <ImageBox label="Galería de la Manzana" src={form.registroFotograficoManzana} h="min-h-[180px]" />
         <div className="bg-slate-900 text-white text-[7px] p-0.5 px-2 flex">
           <span className="font-bold mr-2 uppercase">COMENTARIO:</span>
           <span className="italic truncate">{form.comentarioRegistroManzana}</span>
@@ -289,13 +297,27 @@ const PreviewSection: React.FC<Props> = ({ form }) => {
 
       {/* SIGNATURE SECTION */}
       <div className="mt-8 grid grid-cols-2 gap-10">
-        <div className="border-t border-slate-900 pt-2 text-center flex flex-col">
-           <p className="text-[10px] font-bold uppercase">{form.propietario.nombre || "Firma Propietario"}</p>
+        <div className="border-t border-slate-900 pt-2 text-center flex flex-col min-h-[100px]">
+           <div className="flex-1 flex items-center justify-center mb-1">
+              {form.propietario.firma ? (
+                <img src={form.propietario.firma} alt="Firma Propietario" className="max-h-16 object-contain" />
+              ) : (
+                <div className="text-slate-200 text-[10px] italic">Firma Propietario</div>
+              )}
+           </div>
+           <p className="text-[10px] font-bold uppercase">{form.propietario.nombre || "NOMBRE PROPIETARIO"}</p>
            <p className="text-[8px]">C.I. {form.propietario.cedula}</p>
            <p className="text-[8px] uppercase mt-1">PROPIETARIO / REP. LEGAL</p>
         </div>
-        <div className="border-t border-slate-900 pt-2 text-center flex flex-col">
-           <p className="text-[10px] font-bold uppercase">{form.profesional.nombre || "Firma Profesional"}</p>
+        <div className="border-t border-slate-900 pt-2 text-center flex flex-col min-h-[100px]">
+           <div className="flex-1 flex items-center justify-center mb-1">
+              {form.profesional.firma ? (
+                <img src={form.profesional.firma} alt="Firma Profesional" className="max-h-16 object-contain" />
+              ) : (
+                <div className="text-slate-200 text-[10px] italic">Firma Profesional</div>
+              )}
+           </div>
+           <p className="text-[10px] font-bold uppercase">{form.profesional.nombre || "NOMBRE PROFESIONAL"}</p>
            <p className="text-[8px]">Reg. SENESCYT: {form.profesional.senescyt}</p>
            <p className="text-[8px] uppercase mt-1">PROFESIONAL RESPONSABLE</p>
         </div>

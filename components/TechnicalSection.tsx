@@ -9,20 +9,36 @@ interface Props {
 
 const ImageUploader: React.FC<{
   label: string;
-  value: string;
+  value: string | string[];
   icon: string;
-  onUpload: (data: string) => void;
+  onUpload: (data: any) => void;
   height?: string;
-}> = ({ label, value, icon, onUpload, height = "h-48" }) => {
+  isMultiple?: boolean;
+}> = ({ label, value, icon, onUpload, height = "h-48", isMultiple = false }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
-  const handleFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => onUpload(reader.result as string);
-    reader.readAsDataURL(file);
+  const images = Array.isArray(value) ? value : (value ? [value] : []);
+
+  const handleFiles = (files: FileList) => {
+    const fileList = Array.from(files);
+    const readers = fileList.map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readers).then(results => {
+      if (isMultiple) {
+        onUpload([...images, ...results]);
+      } else {
+        onUpload(results[0]);
+      }
+    });
   };
 
   const startCamera = async () => {
@@ -43,7 +59,13 @@ const ImageUploader: React.FC<{
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d')?.drawImage(video, 0, 0);
-    onUpload(canvas.toDataURL('image/jpeg'));
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    
+    if (isMultiple) {
+      onUpload([...images, dataUrl]);
+    } else {
+      onUpload(dataUrl);
+    }
     stopCamera();
   };
 
@@ -54,47 +76,114 @@ const ImageUploader: React.FC<{
     setShowCamera(false);
   };
 
+  const removeImage = (index: number) => {
+    if (isMultiple) {
+      onUpload(images.filter((_, i) => i !== index));
+    } else {
+      onUpload('');
+    }
+  };
+
   return (
     <div className="space-y-2">
-      <h3 className="font-bold text-slate-700 flex items-center gap-2 text-xs uppercase">
-        <i className={`fas ${icon}`}></i> {label}
+      <h3 className="font-bold text-slate-700 flex items-center gap-2 text-xs uppercase tracking-tight">
+        <i className={`fas ${icon} text-blue-500`}></i> {label}
       </h3>
+      
       <div 
         onDragEnter={e => { e.preventDefault(); setDragActive(true); }}
         onDragLeave={e => { e.preventDefault(); setDragActive(false); }}
         onDragOver={e => e.preventDefault()}
-        onDrop={e => { e.preventDefault(); setDragActive(false); if(e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]); }}
-        className={`relative group border-2 border-dashed rounded-xl ${height} flex flex-col items-center justify-center transition-all overflow-hidden bg-slate-50 ${
-          dragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300'
-        }`}
+        onDrop={e => { e.preventDefault(); setDragActive(false); if(e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files); }}
+        className={`relative group border-2 border-dashed rounded-xl ${height} flex flex-col transition-all overflow-hidden bg-slate-50 ${
+          dragActive ? 'border-blue-500 bg-blue-50 scale-[1.01]' : 'border-slate-300'
+        } ${images.length > 0 && isMultiple ? 'p-4' : 'justify-center items-center'}`}
       >
-        {value ? (
-          <>
-            <img src={value} alt={label} className="absolute inset-0 w-full h-full object-contain p-2" />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <button onClick={() => onUpload('')} className="bg-red-500 text-white p-2 rounded-full shadow-lg hover:scale-110 transition-transform"><i className="fas fa-trash"></i></button>
-              <button onClick={() => fileInputRef.current?.click()} className="bg-white text-slate-900 px-3 py-1 rounded font-bold text-xs shadow-lg">Cambiar</button>
-            </div>
-          </>
-        ) : showCamera ? (
-          <div className="absolute inset-0 bg-black flex flex-col">
+        {/* Camera overlay */}
+        {showCamera && (
+          <div className="absolute inset-0 bg-black flex flex-col z-50">
             <video ref={videoRef} autoPlay playsInline className="flex-1 object-cover" />
-            <div className="p-2 flex justify-between bg-black/80">
-              <button onClick={stopCamera} className="text-white text-xs">Cerrar</button>
-              <button onClick={takePhoto} className="bg-white text-black px-4 py-1 rounded-full text-xs font-bold">Capturar</button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center p-4">
-            <i className={`fas ${icon} text-slate-300 text-2xl mb-2`}></i>
-            <p className="text-[10px] text-slate-400 mb-2">JPG, PNG o Cámara</p>
-            <div className="flex gap-2 justify-center">
-              <button onClick={() => fileInputRef.current?.click()} className="text-[10px] bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-md transition-colors font-semibold text-slate-600">Archivo</button>
-              <button onClick={startCamera} className="text-[10px] bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-md transition-colors font-semibold text-slate-600">Cámara</button>
+            <div className="p-4 flex justify-between bg-black/80">
+              <button onClick={stopCamera} className="text-white text-xs font-bold uppercase tracking-widest">Cancelar</button>
+              <button onClick={takePhoto} className="bg-white text-black px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-400 hover:text-white transition-colors">Capturar</button>
             </div>
           </div>
         )}
-        <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+
+        {images.length > 0 ? (
+          <div className={`w-full h-full ${isMultiple ? 'overflow-y-auto custom-scrollbar' : ''}`}>
+            {isMultiple ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pb-20">
+                {images.map((img, idx) => (
+                  <div key={idx} className="relative aspect-square border rounded-lg overflow-hidden bg-white shadow-sm group/item">
+                    <img src={img} alt={`Img ${idx}`} className="w-full h-full object-cover" />
+                    <button 
+                      onClick={() => removeImage(idx)} 
+                      className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity shadow-md"
+                    >
+                      <i className="fas fa-times text-[10px]"></i>
+                    </button>
+                  </div>
+                ))}
+                {/* Plus button to add more */}
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-square border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-all bg-white/50"
+                >
+                  <i className="fas fa-plus mb-1"></i>
+                  <span className="text-[9px] font-bold uppercase">Añadir</span>
+                </button>
+              </div>
+            ) : (
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img src={images[0]} alt={label} className="max-w-full max-h-full object-contain p-2" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <button onClick={() => removeImage(0)} className="bg-red-500 text-white p-2 rounded-full shadow-lg hover:scale-110 transition-transform"><i className="fas fa-trash"></i></button>
+                  <button onClick={() => fileInputRef.current?.click()} className="bg-white text-slate-900 px-3 py-1 rounded font-bold text-xs shadow-lg">Cambiar</button>
+                </div>
+              </div>
+            )}
+            
+            {/* Action buttons at bottom for multiple mode */}
+            {isMultiple && (
+               <div className="absolute bottom-4 left-0 right-0 px-4 flex justify-center gap-2">
+                  <button onClick={() => fileInputRef.current?.click()} className="bg-white/90 backdrop-blur text-slate-700 border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-bold shadow-sm hover:bg-white flex items-center gap-2">
+                    <i className="fas fa-folder-open text-blue-500"></i> Archivo
+                  </button>
+                  <button onClick={startCamera} className="bg-white/90 backdrop-blur text-slate-700 border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-bold shadow-sm hover:bg-white flex items-center gap-2">
+                    <i className="fas fa-camera text-blue-500"></i> Cámara
+                  </button>
+               </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center p-4">
+            <i className={`fas ${icon} text-slate-300 text-3xl mb-3`}></i>
+            <p className="text-[10px] text-slate-400 mb-3 font-medium uppercase tracking-wider">JPG, PNG o Cámara</p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="text-[10px] bg-slate-200 hover:bg-blue-600 hover:text-white px-5 py-2 rounded-lg transition-all font-bold text-slate-600 shadow-sm uppercase"
+              >
+                Archivo
+              </button>
+              <button 
+                onClick={startCamera} 
+                className="text-[10px] bg-slate-200 hover:bg-blue-600 hover:text-white px-5 py-2 rounded-lg transition-all font-bold text-slate-600 shadow-sm uppercase"
+              >
+                Cámara
+              </button>
+            </div>
+          </div>
+        )}
+        <input 
+          ref={fileInputRef} 
+          type="file" 
+          multiple={isMultiple} 
+          className="hidden" 
+          accept="image/*" 
+          onChange={e => e.target.files && handleFiles(e.target.files)} 
+        />
       </div>
     </div>
   );
@@ -118,8 +207,8 @@ const TechnicalSection: React.FC<Props> = ({ form, updateForm }) => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <h2 className="text-xl font-bold border-b pb-2 mb-4 text-slate-800 flex items-center gap-2">
+    <div className="space-y-12 animate-in fade-in duration-500">
+      <h2 className="text-xl font-black border-b-4 border-blue-600 pb-2 mb-4 text-slate-800 flex items-center gap-2 uppercase tracking-tight">
         <i className="fas fa-map-marked-alt text-blue-600"></i> 3. Datos Técnicos y Gráficos
       </h2>
       
@@ -204,75 +293,82 @@ const TechnicalSection: React.FC<Props> = ({ form, updateForm }) => {
 
       {/* NEW REGISTRO FOTOGRÁFICO SECTION */}
       <div className="mt-12 space-y-6">
-        <h2 className="text-xl font-bold border-b pb-2 mb-4 text-slate-800 flex items-center gap-2">
-          <i className="fas fa-camera-retro text-emerald-600"></i> Registro Fotográfico Adicional
+        <h2 className="text-xl font-black border-b-4 border-emerald-600 pb-2 mb-4 text-slate-800 flex items-center gap-2 uppercase tracking-tight">
+          <i className="fas fa-camera-retro text-emerald-600"></i> Registro Fotográfico de la Manzana
         </h2>
 
         <div className="space-y-4">
-          <div className="bg-slate-900 text-white text-[11px] font-bold p-2 uppercase tracking-widest text-center rounded-t-lg">
-            Registro Fotográfico de la Manzana
+          <div className="bg-slate-900 text-white text-[11px] font-bold p-3 uppercase tracking-widest text-center rounded-t-xl shadow-lg">
+             Subir Registro de Manzana
           </div>
           <ImageUploader 
-            label="Subir Registro de Manzana" 
+            label="Galería de Fotos de la Manzana" 
             icon="fa-images" 
             value={form.registroFotograficoManzana} 
             onUpload={v => updateForm({ registroFotograficoManzana: v })}
-            height="h-64"
+            height="min-h-[300px]"
+            isMultiple={true}
           />
-          <div className="bg-slate-800 text-white p-2 rounded-b-lg flex flex-col gap-1">
-            <span className="font-bold text-[10px] uppercase tracking-wider px-1">Comentario:</span>
+          <div className="bg-slate-800 text-white p-4 rounded-b-xl flex flex-col gap-2 shadow-inner">
+            <span className="font-bold text-[10px] uppercase tracking-wider px-1 text-emerald-400">
+               <i className="fas fa-comment-alt mr-2"></i> Descripción del Registro de Manzana:
+            </span>
             <textarea 
               value={form.comentarioRegistroManzana}
               onChange={e => updateForm({ comentarioRegistroManzana: e.target.value })}
-              className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-blue-400"
-              placeholder="Describa la fotografía de la manzana..."
-              rows={2}
+              className="w-full bg-slate-700/50 border border-slate-600 rounded-lg p-3 outline-none text-slate-100 text-sm focus:ring-2 focus:ring-emerald-400 transition-all"
+              placeholder="Describa los elementos relevantes observados en las fotografías de la manzana..."
+              rows={3}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-8">
           {/* Lote en estudio */}
-          <div className="space-y-4">
-            <div className="bg-slate-900 text-white text-[10px] font-bold p-2 uppercase text-center rounded-t-lg">
-              Lote en Estudio con Retiros y Colindantes
+          <div className="space-y-4 group">
+            <div className="bg-slate-900 text-white text-[10px] font-black p-2.5 uppercase text-center rounded-t-lg tracking-widest shadow-md">
+              Lote en Estudio: Retiros y Colindantes
             </div>
             <ImageUploader 
-              label="Vista de Retiros y Colindantes" 
+              label="Retiros y Colindancias" 
               icon="fa-ruler-combined" 
               value={form.loteRetirosColindantes} 
               onUpload={v => updateForm({ loteRetirosColindantes: v })}
+              height="h-64"
+              isMultiple={true}
             />
-            <div className="bg-slate-800 text-white p-2 rounded-b-lg flex flex-col gap-1">
-              <span className="font-bold text-[9px] uppercase tracking-wider px-1">Comentario:</span>
+            <div className="bg-slate-800 text-white p-3 rounded-b-lg flex flex-col gap-1.5 shadow-sm">
+              <span className="font-bold text-[9px] uppercase tracking-wider px-1 text-emerald-400">Comentario Técnico:</span>
               <textarea 
                 value={form.comentarioLoteRetiros}
                 onChange={e => updateForm({ comentarioLoteRetiros: e.target.value })}
-                className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-blue-400"
-                placeholder="Observaciones del lote y retiros..."
+                className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-emerald-400"
+                placeholder="Observaciones del lote, retiros frontales, laterales y posteriores..."
                 rows={2}
               />
             </div>
           </div>
 
           {/* Fotografía del predio */}
-          <div className="space-y-4">
-            <div className="bg-slate-900 text-white text-[10px] font-bold p-2 uppercase text-center rounded-t-lg">
-              Fotografía del Predio y sus Colindantes
+          <div className="space-y-4 group">
+            <div className="bg-slate-900 text-white text-[10px] font-black p-2.5 uppercase text-center rounded-t-lg tracking-widest shadow-md">
+              Fotografía del Predio y Fachada
             </div>
             <ImageUploader 
-              label="Fotografía de Fachada / Entorno" 
+              label="Vistas del Predio" 
               icon="fa-home" 
               value={form.fotografiaPredioColindantes} 
               onUpload={v => updateForm({ fotografiaPredioColindantes: v })}
+              height="h-64"
+              isMultiple={true}
             />
-            <div className="bg-slate-800 text-white p-2 rounded-b-lg flex flex-col gap-1">
-              <span className="font-bold text-[9px] uppercase tracking-wider px-1">Comentario:</span>
+            <div className="bg-slate-800 text-white p-3 rounded-b-lg flex flex-col gap-1.5 shadow-sm">
+              <span className="font-bold text-[9px] uppercase tracking-wider px-1 text-emerald-400">Observaciones de Entorno:</span>
               <textarea 
                 value={form.comentarioFotografiaPredio}
                 onChange={e => updateForm({ comentarioFotografiaPredio: e.target.value })}
-                className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-blue-400"
-                placeholder="Observaciones de la fachada..."
+                className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-emerald-400"
+                placeholder="Análisis de fachada y relación con los predios colindantes inmediatos..."
                 rows={2}
               />
             </div>
@@ -281,13 +377,13 @@ const TechnicalSection: React.FC<Props> = ({ form, updateForm }) => {
       </div>
 
       <div className="pt-8">
-        <label className="block text-sm font-bold text-slate-700 mb-2 uppercase text-[10px] tracking-widest">Comentario Técnico de la Sección</label>
+        <label className="block text-sm font-black text-slate-700 mb-2 uppercase text-[10px] tracking-widest">Comentario Técnico General de la Sección</label>
         <textarea 
           rows={3} 
           value={form.comentarioTecnico} 
           onChange={e => updateForm({ comentarioTecnico: e.target.value })}
-          className="w-full border rounded-xl p-4 text-sm bg-slate-50 outline-none border-slate-300 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
-          placeholder="Ingrese cualquier observación técnica adicional sobre el levantamiento o los registros fotográficos..."
+          className="w-full border-2 rounded-xl p-4 text-sm bg-slate-50 outline-none border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all shadow-inner"
+          placeholder="Ingrese cualquier observación técnica adicional sobre el levantamiento o los registros fotográficos consolidados..."
         ></textarea>
       </div>
     </div>

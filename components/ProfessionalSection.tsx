@@ -1,11 +1,63 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { FormState } from '../types';
 
 interface Props {
   form: FormState;
   updateForm: (u: Partial<FormState>) => void;
 }
+
+const SignatureUploader: React.FC<{
+  value: string;
+  onUpload: (data: string) => void;
+  label: string;
+}> = ({ value, onUpload, label }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => onUpload(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div 
+        onClick={() => !value && fileInputRef.current?.click()}
+        className={`h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all overflow-hidden relative group cursor-pointer ${
+          value ? 'border-blue-600 bg-white' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+        }`}
+      >
+        {value ? (
+          <>
+            <img src={value} alt="Firma" className="max-w-full max-h-full object-contain p-2" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <button 
+                onClick={(e) => { e.stopPropagation(); onUpload(''); }} 
+                className="bg-red-500 text-white p-2 rounded-full shadow-lg"
+              >
+                <i className="fas fa-trash"></i>
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center p-4">
+            <i className="fas fa-signature text-slate-300 text-2xl mb-1"></i>
+            <p className="text-[10px] text-slate-500 font-bold uppercase">{label}</p>
+            <p className="text-[9px] text-slate-400">Clic para subir escaneado o firma digital</p>
+          </div>
+        )}
+      </div>
+      <input 
+        ref={fileInputRef} 
+        type="file" 
+        className="hidden" 
+        accept="image/*" 
+        onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} 
+      />
+    </div>
+  );
+};
 
 const ProfessionalSection: React.FC<Props> = ({ form, updateForm }) => {
   const updateOwner = (f: keyof FormState['propietario'], v: string) => {
@@ -41,9 +93,12 @@ const ProfessionalSection: React.FC<Props> = ({ form, updateForm }) => {
               <input type="email" value={form.propietario.email} onChange={e => updateOwner('email', e.target.value)} className="w-full border rounded p-2" />
             </div>
           </div>
-          <div className="h-24 border-2 border-dashed border-slate-300 flex items-end justify-center pb-2 text-slate-400 text-xs italic">
-            Firma del Propietario / Representante Legal
-          </div>
+          
+          <SignatureUploader 
+            label="Firma Propietario" 
+            value={form.propietario.firma} 
+            onUpload={v => updateOwner('firma', v)} 
+          />
         </div>
 
         {/* Profesional */}
@@ -75,9 +130,12 @@ const ProfessionalSection: React.FC<Props> = ({ form, updateForm }) => {
                </div>
             </div>
           </div>
-          <div className="h-24 border-2 border-dashed border-slate-300 flex items-end justify-center pb-2 text-slate-400 text-xs italic">
-            Firma del Profesional
-          </div>
+          
+          <SignatureUploader 
+            label="Firma Profesional" 
+            value={form.profesional.firma} 
+            onUpload={v => updateProf('firma', v)} 
+          />
         </div>
       </div>
 
