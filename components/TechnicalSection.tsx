@@ -219,14 +219,14 @@ const TechnicalSection: React.FC<Props> = ({ form, updateForm }) => {
             onUpload={v => updateForm({ registroFotograficoManzana: v })}
             height="h-64"
           />
-          <div className="bg-slate-800 text-white text-[10px] p-1 px-3 flex items-center gap-4">
-            <span className="font-bold">COMENTARIO:</span>
-            <input 
-              type="text" 
+          <div className="bg-slate-800 text-white p-2 rounded-b-lg flex flex-col gap-1">
+            <span className="font-bold text-[10px] uppercase tracking-wider px-1">Comentario:</span>
+            <textarea 
               value={form.comentarioRegistroManzana}
               onChange={e => updateForm({ comentarioRegistroManzana: e.target.value })}
-              className="flex-1 bg-transparent border-none outline-none text-slate-200 text-xs py-1"
+              className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-blue-400"
               placeholder="Describa la fotografía de la manzana..."
+              rows={2}
             />
           </div>
         </div>
@@ -243,14 +243,14 @@ const TechnicalSection: React.FC<Props> = ({ form, updateForm }) => {
               value={form.loteRetirosColindantes} 
               onUpload={v => updateForm({ loteRetirosColindantes: v })}
             />
-            <div className="bg-slate-800 text-white text-[10px] p-1 px-3 flex items-center gap-2">
-              <span className="font-bold">COMENTARIO:</span>
-              <input 
-                type="text" 
+            <div className="bg-slate-800 text-white p-2 rounded-b-lg flex flex-col gap-1">
+              <span className="font-bold text-[9px] uppercase tracking-wider px-1">Comentario:</span>
+              <textarea 
                 value={form.comentarioLoteRetiros}
                 onChange={e => updateForm({ comentarioLoteRetiros: e.target.value })}
-                className="flex-1 bg-transparent border-none outline-none text-slate-200 text-xs py-1"
-                placeholder="..."
+                className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-blue-400"
+                placeholder="Observaciones del lote y retiros..."
+                rows={2}
               />
             </div>
           </div>
@@ -266,14 +266,14 @@ const TechnicalSection: React.FC<Props> = ({ form, updateForm }) => {
               value={form.fotografiaPredioColindantes} 
               onUpload={v => updateForm({ fotografiaPredioColindantes: v })}
             />
-            <div className="bg-slate-800 text-white text-[10px] p-1 px-3 flex items-center gap-2">
-              <span className="font-bold">COMENTARIO:</span>
-              <input 
-                type="text" 
+            <div className="bg-slate-800 text-white p-2 rounded-b-lg flex flex-col gap-1">
+              <span className="font-bold text-[9px] uppercase tracking-wider px-1">Comentario:</span>
+              <textarea 
                 value={form.comentarioFotografiaPredio}
                 onChange={e => updateForm({ comentarioFotografiaPredio: e.target.value })}
-                className="flex-1 bg-transparent border-none outline-none text-slate-200 text-xs py-1"
-                placeholder="..."
+                className="w-full bg-slate-700/50 border border-slate-600 rounded p-2 outline-none text-slate-100 text-xs focus:ring-1 focus:ring-blue-400"
+                placeholder="Observaciones de la fachada..."
+                rows={2}
               />
             </div>
           </div>

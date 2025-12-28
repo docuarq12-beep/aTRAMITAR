@@ -1,20 +1,27 @@
 
-import { FormState, Coordinate, Proposal } from './types';
+import { FormState, Coordinate, Proposal, ProposalValues } from './types';
 
 export const INITIAL_COORDINATE: (id: string) => Coordinate = (id) => ({
   id, x: '', y: ''
 });
 
-export const INITIAL_PROPOSAL: Proposal = {
-  areaTerreno: '',
-  areaEdificable: '',
+const EMPTY_VALUES: ProposalValues = {
   cos: '',
   cosTotal: '',
   numPisos: '',
-  implantacion: 'Aislada',
-  retiros: { f: '', l: '', p: '' },
+  implantacion: '',
+  retiros: { f: '', l: '', p: '' }
+};
+
+export const INITIAL_PROPOSAL: Proposal = {
+  areaTerreno: '',
+  areaEdificable: '',
+  proyecto: { ...EMPTY_VALUES },
+  zonificacion: { ...EMPTY_VALUES },
   observacion: '',
-  validacion: ''
+  validacion: '',
+  comentario: '',
+  graficoPropuesta: ''
 };
 
 export const INITIAL_STATE: FormState = {
@@ -73,7 +80,7 @@ export const INITIAL_STATE: FormState = {
     celular: '',
     email: ''
   },
-  propuesta1: { ...INITIAL_PROPOSAL },
-  propuesta2: { ...INITIAL_PROPOSAL },
+  propuesta1: JSON.parse(JSON.stringify(INITIAL_PROPOSAL)),
+  propuesta2: JSON.parse(JSON.stringify(INITIAL_PROPOSAL)),
   observacionesGenerales: ''
 };

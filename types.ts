@@ -5,20 +5,27 @@ export interface Coordinate {
   y: string;
 }
 
-export interface Proposal {
-  areaTerreno: string;
-  areaEdificable: string;
+export interface ProposalValues {
   cos: string;
   cosTotal: string;
   numPisos: string;
   implantacion: string;
   retiros: {
-    f: string; // frontal
-    l: string; // lateral
-    p: string; // posterior
+    f: string;
+    l: string;
+    p: string;
   };
+}
+
+export interface Proposal {
+  areaTerreno: string;
+  areaEdificable: string;
+  proyecto: ProposalValues;
+  zonificacion: ProposalValues;
   observacion: string;
   validacion: string;
+  comentario: string;
+  graficoPropuesta: string; // Base64 image
 }
 
 export interface FormState {
