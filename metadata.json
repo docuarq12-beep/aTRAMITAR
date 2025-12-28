@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Gestor de Estudio Morfológico - GAD Riobamba",
+  "description": "Una aplicación profesional para la generación y llenado rápido del Formulario de Modificación de Adosamientos y Retiros Urbanos para el Cantón Riobamba.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
